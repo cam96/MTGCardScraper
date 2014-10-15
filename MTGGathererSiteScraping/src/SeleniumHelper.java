@@ -53,32 +53,11 @@ public class SeleniumHelper {
 		return innerHTML;
 	}
 	
-	public static String setTagsAroundAllTaglessText(WebDriver driver, WebElement webElement) {
-		String innerHTML = "";
-		
+	public static void setInnerHTMLToText(WebDriver driver, WebElement webElement, String text) {
 		if (driver instanceof JavascriptExecutor) {
 		    ((JavascriptExecutor)driver).executeScript(
-		    	"var innerHTML = arguments[0].innerHTML;" +
-		    	"var currText = \"\"" +
-		    	"for (var index = 0; index < innerHTML.length; index++) {" + 
-		    		"currText = currText + innerHTML[index]" + 
-		    		"if (innerHTML[index] == \"<\\\")" +
-		    			"" +
-		    			"" +
-		    			"" +
-		    			"" +
-		    			"" +
-		    	"}" +
-		    	"",
-		    webElement);
+		    	"arguments[0].innerHTML = arguments[1];", webElement, text);
 		}
-		
-		return innerHTML;
-	}
-	
-	private boolean isHTMLTag(String tag) {
-		return tag.equals("<img>")  || tag.equals("<div>")  || tag.equals("<p>")     || tag.equals("<html>")  ||
-			   tag.equals("<body>") || tag.equals("<head>") || tag.equals("<title>") || tag.equals("<aside>");
 	}
 	
 	public static String getTextFromElement(WebDriver driver, By selectBy) {
@@ -88,8 +67,7 @@ public class SeleniumHelper {
 			WebElement webElement = driver.findElement(selectBy);
 			
 			if (webElement.getTagName().equals("div")) {
-				System.out.println(getInnerHTMLForElement(driver, webElement));
-//				elementValue += getTextFromChildrenOfWebElement(webElement);
+				elementValue += getTextFromChildrenOfWebElement(driver, webElement);
 			}
 			else {
 				elementValue = webElement.getText();
@@ -102,21 +80,23 @@ public class SeleniumHelper {
 		return elementValue;
 	}
 	
-	private static String getTextFromChildrenOfWebElementR(WebElement webElement, List<WebElement> children, int index) {
+	private static String getTextFromChildrenOfWebElementR(WebDriver driver, WebElement webElement, List<WebElement> children, int index) {
 		String buffer = "";
 		
 		if (index < children.size()) {
 			WebElement child = children.get(index);
 			String tag = child.getTagName();
-			String text = "";
 				
 			if (tag.equals("img")) {
 				String alt = child.getAttribute("alt");
-				return buffer + alt + getTextFromChildrenOfWebElementR(child, children, index+1);
+				setInnerHTMLToText(driver, child, alt);
+				return buffer + getTextFromChildrenOfWebElementR(driver, child, children, index+1);
+			}
+			else if (tag.equals("div")) {
+				return buffer + getTextFromChildrenOfWebElementR(driver, child, child.findElements(By.xpath("./*")), 0) + child.getText();
 			}
 			else {
-				text = child.getText();
-				return buffer + text + '\n' + getTextFromChildrenOfWebElementR(child, child.findElements(By.xpath("./*")), 0);
+				return "";
 			}
 		}
 		else {
@@ -124,13 +104,14 @@ public class SeleniumHelper {
 		}
 	}
 	
-	public static String getTextFromChildrenOfWebElement(WebElement webElement) {
+	public static String getTextFromChildrenOfWebElement(WebDriver driver, WebElement webElement) {
 		List<WebElement> children = webElement.findElements(By.xpath("./*"));
 		String buffer = "";
+		int index = 0;
 		
 		if (children.size() > 0) {
 			for (WebElement child : children) {
-				buffer += getTextFromChildrenOfWebElementR(webElement, children, children.indexOf(child));
+				buffer += getTextFromChildrenOfWebElementR(driver, webElement, children, children.indexOf(child)) + " ";
 			}
 		}
 		else {
